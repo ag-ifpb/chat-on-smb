@@ -16,13 +16,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.*;
+
+import br.edu.ifpb.chatgroup.model.Message;
+import java.time.LocalDateTime;
 
 public class CommandFileServiceImpl implements CommandFileService {
 
     private final Logger log = Logger.getAnonymousLogger();
 
     @Override
-    public String readFile(SmbFile file) {
+    public ArrayList<Message> readFile(SmbFile file) {
 
         String conteudo = "";
         BufferedReader reader = null;
@@ -37,18 +41,25 @@ public class CommandFileServiceImpl implements CommandFileService {
             log.log(Level.WARNING, "Erro: URL mal formada.\n" + e.getMessage());
         }
 
-        String line = null;
+        ArrayList<Message> result = new ArrayList<Message>();
         try {
-            line = reader.readLine();
-            while (line != null) {
-                conteudo += line+"\n";
-                line = reader.readLine();
-            }
+            //
+            String line = null;
+            do {
+                line = reader.readLine();//Unmarshal
+                //unmarshal
+                if (line != null){
+                    String[] attrs = line.split("\\|\\|");
+                    Message m = new Message(attrs[0], attrs[1], LocalDateTime.parse(attrs[2]));
+                    result.add(m);
+                }
+            } while(line != null);
             reader.close();
-            return conteudo;
+            //
+            return result;
         } catch (IOException e) {
             log.log(Level.WARNING, "Erro: Não foi possível ler o arquivo.\n" + e.getMessage());
-            return "";
+            return null;
         }
     }
 
@@ -58,10 +69,17 @@ public class CommandFileServiceImpl implements CommandFileService {
         BufferedWriter writer = null;
 
         try {
+            //
+            StringBuilder sb = new StringBuilder();
+            sb.append(message.getId());
+            sb.append("||");
+            sb.append(message.getMensagem());
+            sb.append("||");
+            sb.append(message.getTimestamp());
+            //
             writer = new BufferedWriter(new OutputStreamWriter(new SmbFileOutputStream(file, true)));
-            writer.write(message.toString());
+            writer.write(sb.toString());//Marshal
             writer.newLine();
-            writer.flush();
         } catch (UnknownHostException e) {
             log.log(Level.WARNING, e.getMessage());
         } catch (SmbException e) {
@@ -73,7 +91,7 @@ public class CommandFileServiceImpl implements CommandFileService {
         } finally {
             if (writer != null) {
                 try {
-                    writer.flush();
+                    writer.close();
                 } catch (IOException e) {
                     log.log(Level.WARNING, e.getMessage());
                 }

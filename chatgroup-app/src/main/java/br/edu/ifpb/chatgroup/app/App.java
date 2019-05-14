@@ -7,13 +7,27 @@ import jcifs.smb.*;
 
 import java.net.MalformedURLException;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import java.io.*;
+
 public class App {
+	private static String login = "";
+	
+	private static void printMessages(PrintStream consoleOuput, ArrayList<Message> messages, boolean withMe){
+		for (Message m : messages){
+			if (!m.getId().equals(login) || withMe){
+				String line = String.format("%s (%s): %s", m.getId(), m.getTimestamp().format(DateTimeFormatter.ISO_LOCAL_DATE), m.getMensagem());
+	            consoleOuput.print(line + "\n");
+			}
+			
+        }
+	}
 
     public static void main(String[] args) {
 
@@ -22,12 +36,14 @@ public class App {
 
         final Logger log = Logger.getAnonymousLogger();
 
-        final String username = "romulo";
-        final String password = "orlo8m";
+        //autentica a entrada na pasta compartilhada
+        final String username = "rodger";
+        final String password = "secret";
         NtlmPasswordAuthentication auth = new NtlmPasswordAuthentication(null, username, password);
 
+        //tentar acessar o arquivo
         try {
-            file = new SmbFile("smb://192.168.1.103/dir-server-shared/db-message.csv", auth);
+            file = new SmbFile("smb://10.42.0.1/chat-sd/db.txt", auth);
         } catch (MalformedURLException e) {
             log.log(Level.WARNING, "Arquivo não encontrado!\n" + e.getMessage());
         }
@@ -36,7 +52,8 @@ public class App {
         final int OPTION_MESSAGE = 1;
         final int OPTION_EXIT = 3;
 
-        List<String> authorizedLogin = new ArrayList<>();
+        //autorização
+        List<String> authorizedLogin = new ArrayList<String>();
         authorizedLogin.add("cliente01");
         authorizedLogin.add("cliente02");
         authorizedLogin.add("cliente03");
@@ -46,48 +63,33 @@ public class App {
 
         System.out.print("Digite seu nickname para login: ");
         Scanner scannerLogin = new Scanner(System.in);
-        String login = scannerLogin.nextLine();
-
+        login = scannerLogin.nextLine();
+        //
+        final PrintStream consoleOuput = System.out;
         if (authorizedLogin.contains(login)){
-
-            System.out.println("\n--- Mensagens Anteriores ---");
-            System.out.println(commandFileController.readFile(file));
-
+        	
+            //caso o login dê certo apresenta uma mensagem
+            consoleOuput.println("\n--- Mensagens Anteriores ---");
+            printMessages(consoleOuput, commandFileController.readFile(file), true);
+            
+            //TODO: como controlar para apresentar a última mensagem
+            Scanner scannerMessage = new Scanner(System.in);
             while (optionMenu != OPTION_EXIT) {
-
-                System.out.println("\n--- MENU ---");
-                System.out.println("'1' para escrever uma mensagem.");
-                System.out.println("'3' para sair do chat.\n");
-
-                System.out.print("Informe a opção desejada: ");
-                Scanner scannerOptionMenu = new Scanner(System.in);
-                optionMenu = scannerOptionMenu.nextInt();
-
-                switch (optionMenu) {
-                    case OPTION_MESSAGE:
-
-                        Scanner scannerMessage = new Scanner(System.in);
-                        System.out.print("Escreva a mensagem: ");
-                        String messageText = scannerMessage.nextLine();
-
-                        Message message = new Message(login, messageText, LocalDateTime.now());
-                        commandFileController.writeFile(file, message);
-
-                        System.out.println("\n--- Mensagens Anteriores ---");
-                        System.out.println(commandFileController.readFile(file));
-
-                        break;
-                    case 3:
-                        System.out.println("\nLogout realizado com sucesso!\n");
-                        optionMenu = OPTION_EXIT;
-                        break;
-                    default:
-                        System.out.println("Esta não é uma opção válida!");
-                }
+                //ler do console e enviar para o arquivo
+                consoleOuput.print("Eu: ");
+                String messageText = scannerMessage.nextLine();//bloqueante
+                //construir a mensagem e escrever no arquivo
+                Message message = new Message(login, messageText, LocalDateTime.now());
+                commandFileController.writeFile(file, message);
+                //ler do arquivo //TODO: ler apenas o que precisa
+                ArrayList<Message> messages = commandFileController.readFile(file);
+                //escreve no arquivo
+                printMessages(consoleOuput, messages, false);
             }
 
-        } else System.out.println("Login inválido!");
+        } else consoleOuput.println("Login inválido!");
 
     }
-
+    //TODO: recuperar apenas a última mensagem, depois que for lido as mensagens antigas
+    //TODO: criar um looping para recuperar as mensagens e um timout para escrita (10s)
 }

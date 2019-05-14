@@ -5,6 +5,10 @@ import br.edu.ifpb.chatgroup.model.Message;
 import br.edu.ifpb.chatgroup.service.CommandFileServiceImpl;
 import jcifs.smb.SmbFile;
 
+import java.util.*;
+
+import br.edu.ifpb.chatgroup.model.Message;
+
 public class CommandFileController {
 
     private CommandFileService commandFileService;
@@ -13,7 +17,7 @@ public class CommandFileController {
         this.commandFileService = commandFileServiceImpl;
     }
 
-    public String readFile(SmbFile file) {
+    public ArrayList<Message> readFile(SmbFile file) {
         return commandFileService.readFile(file);
     }
 
